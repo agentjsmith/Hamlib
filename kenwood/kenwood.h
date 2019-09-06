@@ -27,7 +27,7 @@
 #include <string.h>
 #include "token.h"
 
-#define BACKEND_VER "1.0"
+#define BACKEND_VER "1.2"
 
 #define EOM_KEN ';'
 #define EOM_TH '\r'
@@ -176,11 +176,15 @@ extern const struct rig_caps ts930_caps;
 extern const struct rig_caps ts2000_caps;
 extern const struct rig_caps k2_caps;
 extern const struct rig_caps k3_caps;
+extern const struct rig_caps k3s_caps;
+extern const struct rig_caps kx2_caps;
+extern const struct rig_caps kx3_caps;
 extern const struct rig_caps xg3_caps;
 extern const struct rig_caps trc80_caps;
 
 extern const struct rig_caps thd7a_caps;
 extern const struct rig_caps thd72a_caps;
+extern const struct rig_caps thd74_caps;
 extern const struct rig_caps tmd700_caps;
 extern const struct rig_caps thf7a_caps;
 extern const struct rig_caps thf7e_caps;
@@ -203,6 +207,7 @@ extern const struct rig_caps transfox_caps;
 
 extern const struct rig_caps f6k_caps;
 extern const struct rig_caps pihpsdr_caps;
+extern const struct rig_caps ts890s_caps;
 
 /* use when not interested in the answer, but want to check its len */
 static int inline kenwood_simple_transaction(RIG *rig, const char *cmd, size_t expected)

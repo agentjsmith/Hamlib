@@ -820,6 +820,42 @@ typedef unsigned long setting_t;
 #define RIG_FUNC_TBURST     (1UL<<29)   /*!< \c TBURST -- 1750 Hz tone burst */
 #define RIG_FUNC_TUNER      (1UL<<30)   /*!< \c TUNER -- Enable automatic tuner */
 #define RIG_FUNC_XIT        (1UL<<31)   /*!< \c XIT -- Transmitter Incremental Tuning */
+#ifndef SWIGLUA
+/* Hide the top 32 bits from the Lua binding as they can't be represented */
+#define RIG_FUNC_NB2        CONSTANT_64BIT_FLAG (32)   /*!< \c NB2 -- 2nd Noise Blanker */
+#define RIG_FUNC_DSQL       CONSTANT_64BIT_FLAG (33)   /*!< \c DSQL -- DCS Squelch setting */
+#define RIG_FUNC_AFLT       CONSTANT_64BIT_FLAG (34)   /*!< \c AFLT -- AF Filter setting */
+#define RIG_FUNC_ANL        CONSTANT_64BIT_FLAG (35)   /*!< \c ANL -- Noise limiter setting */
+#define RIG_FUNC_BC2        CONSTANT_64BIT_FLAG (36)   /*!< \c BC2 -- 2nd Beat Cancel */
+#define RIG_FUNC_DUAL_WATCH CONSTANT_64BIT_FLAG (37)   /*!< \c DUAL_WATCH -- Dual Watch / Sub Receiver */
+#define RIG_FUNC_DIVERSITY  CONSTANT_64BIT_FLAG (38)   /*!< \c DIVERSITY -- Diversity receive */
+#define RIG_FUNC_BIT39      CONSTANT_64BIT_FLAG (39)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT40      CONSTANT_64BIT_FLAG (40)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT41      CONSTANT_64BIT_FLAG (41)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT42      CONSTANT_64BIT_FLAG (42)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT43      CONSTANT_64BIT_FLAG (43)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT44      CONSTANT_64BIT_FLAG (44)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT45      CONSTANT_64BIT_FLAG (45)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT46      CONSTANT_64BIT_FLAG (46)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT47      CONSTANT_64BIT_FLAG (47)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT48      CONSTANT_64BIT_FLAG (48)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT49      CONSTANT_64BIT_FLAG (49)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT50      CONSTANT_64BIT_FLAG (50)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT51      CONSTANT_64BIT_FLAG (51)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT52      CONSTANT_64BIT_FLAG (52)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT53      CONSTANT_64BIT_FLAG (53)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT54      CONSTANT_64BIT_FLAG (54)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT55      CONSTANT_64BIT_FLAG (55)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT56      CONSTANT_64BIT_FLAG (56)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT57      CONSTANT_64BIT_FLAG (57)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT58      CONSTANT_64BIT_FLAG (58)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT59      CONSTANT_64BIT_FLAG (59)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT60      CONSTANT_64BIT_FLAG (60)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT61      CONSTANT_64BIT_FLAG (61)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT62      CONSTANT_64BIT_FLAG (62)   /* available for future RIG_FUNC items */
+#define RIG_FUNC_BIT63      CONSTANT_64BIT_FLAG (63)   /* available for future RIG_FUNC items */
+/* 63 is this highest bit number that can be used */
+#endif
 
 
 /**

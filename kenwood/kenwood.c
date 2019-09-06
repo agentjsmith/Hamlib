@@ -86,6 +86,7 @@ static const struct kenwood_id kenwood_id_list[] = {
   { RIG_MODEL_TS590S, 21 },
   { RIG_MODEL_TS990S, 22 },
   { RIG_MODEL_TS590SG, 23 },
+  { RIG_MODEL_TS890S, 24 },
   { RIG_MODEL_NONE, UNKNOWN_ID }, /* end marker */
 };
 
@@ -114,6 +115,7 @@ static const struct kenwood_id_string kenwood_id_string_list[] = {
   { RIG_MODEL_TMD700, "TM-D700" },
   { RIG_MODEL_TMD710, "TM-D710" },
   { RIG_MODEL_THD72A, "TH-D72" },
+  { RIG_MODEL_THD74, "TH-D74" },
   { RIG_MODEL_TMV7, "TM-V7" },
   { RIG_MODEL_TMV71,  "TM-V71" },
   { RIG_MODEL_THF6A,  "TH-F6" },
@@ -132,7 +134,13 @@ rmode_t kenwood_mode_table[KENWOOD_MODE_TABLE_MAX] = {
   [6] = RIG_MODE_RTTY,
   [7] = RIG_MODE_CWR,
   [8] = RIG_MODE_NONE,  /* TUNE mode */
-  [9] = RIG_MODE_RTTYR
+  [9] = RIG_MODE_RTTYR,
+  [10] = RIG_MODE_PSK,
+  [11] = RIG_MODE_PSKR,
+  [12] = RIG_MODE_PKTLSB,
+  [13] = RIG_MODE_PKTUSB,
+  [14] = RIG_MODE_PKTFM,
+  [15] = RIG_MODE_PKTAM
 };
 
 /*
@@ -430,6 +438,8 @@ int kenwood_safe_transaction(RIG *rig, const char *cmd, char *buf,
 
   int err;
   int retry = 0;
+
+  memset(buf,0, buf_size);
 
   if (expected == 0)
     buf_size = 0;
@@ -746,7 +756,7 @@ int kenwood_set_vfo(RIG *rig, vfo_t vfo)
     return RIG_OK;
 
   default:
-    rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+    rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
     return -RIG_EINVAL;
   }
 
@@ -821,7 +831,7 @@ int kenwood_set_vfo_main_sub(RIG *rig, vfo_t vfo)
     return RIG_OK;
 
   default:
-    rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+    rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
     return -RIG_EINVAL;
   }
 
@@ -886,7 +896,7 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
     case RIG_VFO_B: vfo_function = '1'; break;
     case RIG_VFO_MEM: vfo_function = '2'; break;
     default:
-      rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+      rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
       return -RIG_EINVAL;
     }
     /* set RX VFO */
@@ -912,7 +922,7 @@ int kenwood_set_split_vfo(RIG *rig, vfo_t vfo, split_t split, vfo_t txvfo)
   case RIG_VFO_B: vfo_function = '1'; break;
   case RIG_VFO_MEM: vfo_function = '2'; break;
   default:
-    rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, txvfo);
+    rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(txvfo));
     return -RIG_EINVAL;
   }
   if (RIG_MODEL_K2 == rig->caps->rig_model
@@ -1134,7 +1144,7 @@ int kenwood_set_freq(RIG *rig, vfo_t vfo, freq_t freq)
     vfo_letter = 'C';
     break;
   default:
-    rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+    rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
     return -RIG_EINVAL;
   }
   snprintf(freqbuf, sizeof (freqbuf), "F%c%011"PRIll, vfo_letter, (int64_t)freq);
@@ -1245,7 +1255,7 @@ int kenwood_get_freq(RIG *rig, vfo_t vfo, freq_t *freq)
     vfo_letter = 'C';
     break;
   default:
-    rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+    rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
     return -RIG_EINVAL;
   }
 
@@ -1442,6 +1452,16 @@ int kenwood_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     return -RIG_EINVAL;
   }
 
+  char c;
+  if (kmode <= 9)
+    {
+      c = '0' + kmode;
+    }
+  else
+    {
+      c = 'A' + kmode - 10;
+    }
+
   if (RIG_MODEL_TS990S == rig->caps->rig_model)
     {
       /* The TS990s has targetable read mode but can only set the mode
@@ -1450,18 +1470,9 @@ int kenwood_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
          setting caps.targetable_vfo to not include
          RIG_TARGETABLE_MODE since the toggle is not required for
          reading the mode. */
-      char c;
       vfo_t curr_vfo;
       err = kenwood_get_vfo_main_sub (rig, &curr_vfo);
       if (err != RIG_OK) return err;
-      if (kmode <= 9)
-        {
-          c = '0' + kmode;
-        }
-      else
-        {
-          c = 'A' + kmode - 10;
-        }
       if (vfo != RIG_VFO_CURR && vfo != curr_vfo)
         {
           err = kenwood_set_vfo_main_sub (rig, vfo);
@@ -1477,7 +1488,7 @@ int kenwood_set_mode(RIG *rig, vfo_t vfo, rmode_t mode, pbwidth_t width)
     }
   else
     {
-      snprintf(buf, sizeof (buf), "MD%c", '0' + kmode);
+      snprintf(buf, sizeof (buf), "MD%c", c);
       err = kenwood_transaction(rig, buf, NULL, 0);
     }
   if (err != RIG_OK) return err;
@@ -1598,7 +1609,7 @@ int kenwood_get_mode(RIG *rig, vfo_t vfo, rmode_t *mode, pbwidth_t *width)
         case RIG_VFO_MAIN: c = '0'; break;
         case RIG_VFO_SUB: c = '1'; break;
         default:
-          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
           return -RIG_EINVAL;
         }
       snprintf(cmd, sizeof (cmd), "OM%c", c);
@@ -1726,7 +1737,8 @@ int kenwood_set_level(RIG *rig, vfo_t vfo, setting_t level, value_t val)
     break;
 
   case RIG_LEVEL_SQL:
-    snprintf(levelbuf, sizeof (levelbuf), "SQ%03d", kenwood_val);
+    /* Default to RX#0 */
+    snprintf(levelbuf, sizeof (levelbuf), "SQ0%03d", kenwood_val);
     break;
 
   case RIG_LEVEL_AGC:
@@ -2018,11 +2030,28 @@ int kenwood_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
   if (!rig)
     return -RIG_EINVAL;
 
-  char buf[6]; /* longest cmd is GTxxx */
+  char buf[10]; /* longest cmd is GTxxx */
 
   switch (func) {
   case RIG_FUNC_NB:
-    snprintf(buf, sizeof (buf), "NB%c", (status == 0) ? '0' : '1');
+  case RIG_FUNC_NB2:
+    /* newer Kenwoods have a second noise blanker */
+    if (RIG_MODEL_TS890S == rig->caps->rig_model) {
+      switch(func) {
+        case RIG_FUNC_NB:
+          snprintf(buf, sizeof (buf), "NB1%c", (status == 0) ? '0' : '1');
+          break;
+        case RIG_FUNC_NB2:
+          snprintf(buf, sizeof (buf), "NB2%c", (status == 0) ? '0' : '1');
+          break;
+	default:
+          rig_debug(RIG_DEBUG_ERR, "%s: expected 0,1, or 2 and got %d\n", __func__, status);
+	  return -RIG_EINVAL;
+      }
+    }
+    else {
+      snprintf(buf, sizeof (buf), "NB%c", (status == 0) ? '0' : '1');
+    }
     return kenwood_transaction(rig, buf, NULL, 0);
 
   case RIG_FUNC_ABM:
@@ -2030,7 +2059,12 @@ int kenwood_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
     return kenwood_transaction(rig, buf, NULL, 0);
 
   case RIG_FUNC_COMP:
-    snprintf(buf, sizeof (buf), "PR%c", (status == 0) ? '0' : '1');
+    if (RIG_MODEL_TS890S == rig->caps->rig_model) {
+      snprintf(buf, sizeof (buf), "PR0%c", (status == 0) ? '0' : '1');
+    }
+    else {
+      snprintf(buf, sizeof (buf), "PR%c", (status == 0) ? '0' : '1');
+    }
     return kenwood_transaction(rig, buf, NULL, 0);
 
   case RIG_FUNC_TONE:
@@ -2050,11 +2084,22 @@ int kenwood_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
     return kenwood_transaction(rig, buf, NULL, 0);
 
   case RIG_FUNC_NR:
-    snprintf(buf, sizeof (buf), "NR%c", (status == 0) ? '0' : '1');
+    if (RIG_MODEL_TS890S == rig->caps->rig_model) {
+      char c = '1';
+      if (status == 2) c = '2';
+      snprintf(buf, sizeof (buf), "NR%c", (status == 0) ? '0' : c);
+    }
+    else {
+      snprintf(buf, sizeof (buf), "NR%c", (status == 0) ? '0' : '1');
+    }
     return kenwood_transaction(rig, buf, NULL, 0);
 
   case RIG_FUNC_BC:
     snprintf(buf, sizeof (buf), "BC%c", (status == 0) ? '0' : '1');
+    return kenwood_transaction(rig, buf, NULL, 0);
+
+  case RIG_FUNC_BC2:
+    snprintf(buf, sizeof (buf), "BC%c", (status == 0) ? '0' : '2');
     return kenwood_transaction(rig, buf, NULL, 0);
 
   case RIG_FUNC_ANF:
@@ -2086,8 +2131,9 @@ int kenwood_set_func(RIG *rig, vfo_t vfo, setting_t func, int status)
 }
 
 /*
- * works for any 'format 1' command
- * answer is always 4 bytes: two byte command id, status and terminator
+ * works for any 'format 1' command or newer command like the TS890 has
+ * as long as the return is a number 0-9
+ * answer is always 4 bytes or 5 bytes: two or three byte command id, status and terminator
  */
 int get_kenwood_func(RIG *rig, const char *cmd, int *status)
 {
@@ -2099,11 +2145,14 @@ int get_kenwood_func(RIG *rig, const char *cmd, int *status)
   int retval;
   char buf[10];
 
-  retval = kenwood_safe_transaction(rig, cmd, buf, 10, 3);
+  int offset=2;
+  if (strlen(cmd)==3) offset=3; // some commands are 3 letters 
+
+  retval = kenwood_safe_transaction(rig, cmd, buf, sizeof(buf), offset+1);
   if (retval != RIG_OK)
     return retval;
 
-  *status = buf[2] == '0' ? 0 : 1;
+  *status = buf[offset] - '0'; // just return whatever the rig returns
 
   return RIG_OK;
 };
@@ -2113,6 +2162,7 @@ int get_kenwood_func(RIG *rig, const char *cmd, int *status)
  */
 int kenwood_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
 {
+  char *cmd;
   rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
 
   if (!rig || !status)
@@ -2131,7 +2181,14 @@ int kenwood_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
     return RIG_OK;
 
   case RIG_FUNC_NB:
-    return get_kenwood_func(rig, "NB", status);
+    cmd = "NB";
+    if (RIG_MODEL_TS890S == rig->caps->rig_model) {
+      cmd = "NB1";
+    }
+    return get_kenwood_func(rig, cmd, status);
+
+  case RIG_FUNC_NB2:
+    return get_kenwood_func(rig, "NB2", status);
 
   case RIG_FUNC_ABM:
     return get_kenwood_func(rig, "AM", status);
@@ -2152,8 +2209,20 @@ int kenwood_get_func(RIG *rig, vfo_t vfo, setting_t func, int *status)
     return get_kenwood_func(rig, "NR", status);
 
   /* FIXME on TS2000 */
-  case RIG_FUNC_BC:
-    return get_kenwood_func(rig, "BC", status);
+  // Check for BC #1
+  case RIG_FUNC_BC: // Most will return BC1 or BC0, if BC2 then BC1 is off
+    retval = get_kenwood_func(rig, "BC", status);
+    if (retval == RIG_OK) {
+      *status = *status == '1' ? 1: 0; 
+    }
+    return retval;
+
+  case RIG_FUNC_BC2: // TS-890 check Beat Cancel 2 we return boolean true/false
+    retval = get_kenwood_func(rig, "BC", status);
+    if (retval == RIG_OK) {
+      *status = *status == '2' ? 1: 0; 
+    }
+    return retval;
 
   case RIG_FUNC_ANF:
     return get_kenwood_func(rig, "NT", status);
@@ -2243,7 +2312,7 @@ int kenwood_set_ctcss_tone_tn(RIG *rig, vfo_t vfo, tone_t tone)
         case RIG_VFO_MAIN: c = '0'; break;
         case RIG_VFO_SUB: c = '1'; break;
         default:
-          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
           return -RIG_EINVAL;
         }
       snprintf(buf, sizeof (buf), "TN%c%02d", c, i + 1);
@@ -2293,7 +2362,7 @@ int kenwood_get_ctcss_tone(RIG *rig, vfo_t vfo, tone_t *tone)
         case RIG_VFO_MAIN: c = '0'; break;
         case RIG_VFO_SUB: c = '1'; break;
         default:
-          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
           return -RIG_EINVAL;
         }
       snprintf(cmd, sizeof (cmd), "TN%c", c);
@@ -2367,7 +2436,7 @@ int kenwood_set_ctcss_sql(RIG *rig, vfo_t vfo, tone_t tone)
         case RIG_VFO_MAIN: c = '0'; break;
         case RIG_VFO_SUB: c = '1'; break;
         default:
-          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
           return -RIG_EINVAL;
         }
       snprintf(buf, sizeof (buf), "CN%c%02d", c, i + 1);
@@ -2411,7 +2480,7 @@ int kenwood_get_ctcss_sql(RIG *rig, vfo_t vfo, tone_t *tone)
         case RIG_VFO_MAIN: c = '0'; break;
         case RIG_VFO_SUB: c = '1'; break;
         default:
-          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
           return -RIG_EINVAL;
         }
       snprintf(cmd, sizeof (cmd), "CN%c", c);
@@ -2488,7 +2557,7 @@ int kenwood_set_ant(RIG * rig, vfo_t vfo, ant_t ant)
         case RIG_VFO_MAIN: c = '0'; break;
         case RIG_VFO_SUB: c = '1'; break;
         default:
-          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
           return -RIG_EINVAL;
         }
       snprintf (cmd, sizeof (cmd), "AN0%c%c99", c, a);
@@ -2667,14 +2736,17 @@ int kenwood_set_trn(RIG *rig, int trn)
   if (!rig)
     return -RIG_EINVAL;
 
-  if (RIG_MODEL_TS990S == rig->caps->rig_model)
-    {
-      return kenwood_transaction(rig, (trn == RIG_TRN_RIG) ? "AI2" : "AI0", NULL, 0);
-    }
-  else
-    {
-      return kenwood_transaction(rig, (trn == RIG_TRN_RIG) ? "AI1" : "AI0", NULL, 0);
-    }
+  switch (rig->caps->rig_model) {
+  	case RIG_MODEL_TS990S:
+      		return kenwood_transaction(rig, (trn == RIG_TRN_RIG) ? "AI2" : "AI0", NULL, 0);
+		break;
+	case RIG_MODEL_THD74:
+		  return kenwood_transaction(rig, (trn == RIG_TRN_RIG) ? "AI 1" : "AI 0", NULL, 4);
+		  break;
+	default:
+		  return kenwood_transaction(rig, (trn == RIG_TRN_RIG) ? "AI1" : "AI0", NULL, 0);
+		  break;
+	  }
 }
 
 /*
@@ -2699,11 +2771,17 @@ int kenwood_get_trn(RIG *rig, int *trn)
   char trnbuf[6];
   int retval;
 
-  retval = kenwood_safe_transaction(rig, "AI", trnbuf, 6, 3);
+  if (rig->caps->rig_model == RIG_MODEL_THD74)
+  	retval = kenwood_safe_transaction(rig, "AI", trnbuf, 6, 4);
+  else
+	retval = kenwood_safe_transaction(rig, "AI", trnbuf, 6, 3);
   if (retval != RIG_OK)
     return retval;
 
-  *trn = trnbuf[2] != '0' ? RIG_TRN_RIG : RIG_TRN_OFF;
+  if (rig->caps->rig_model == RIG_MODEL_THD74)
+    *trn = trnbuf[3] != '0' ? RIG_TRN_RIG : RIG_TRN_OFF;
+  else
+    *trn = trnbuf[2] != '0' ? RIG_TRN_RIG : RIG_TRN_OFF;
 
   return RIG_OK;
 }
@@ -2713,12 +2791,29 @@ int kenwood_get_trn(RIG *rig, int *trn)
  */
 int kenwood_set_powerstat(RIG *rig, powerstat_t status)
 {
-  rig_debug(RIG_DEBUG_VERBOSE, "%s called\n", __func__);
+  rig_debug(RIG_DEBUG_VERBOSE, "%s called status=%d\n", __func__, status);
 
   if (!rig)
     return -RIG_EINVAL;
 
-  return kenwood_transaction(rig, (status == RIG_POWER_ON) ? "PS1" : "PS0", NULL, 0);
+  int retval = kenwood_transaction(rig, (status == RIG_POWER_ON) ? "PS1" : "PS0", NULL, 0);
+
+  int i=0;
+  int retry=3/rig->state.rigport.retry;
+  if (status==RIG_POWER_ON) { // wait for wakeup only
+    for(i=0;i<retry;++i) { // up to 10 seconds
+       sleep(1);  
+       freq_t freq;
+       retval = rig_get_freq(rig, RIG_VFO_A, &freq);
+       if (retval == RIG_OK) return retval;
+       rig_debug(RIG_DEBUG_TRACE,"%s: Wait %d of %d for power up\n",__func__,i+1,retry);
+    }
+  }
+  if (i==retry) {
+       rig_debug(RIG_DEBUG_TRACE,"%s: timeout waiting for powerup\n",__func__,i+1);
+       retval = -RIG_ETIMEOUT;
+  }
+  return retval; 
 }
 
 /*
@@ -2834,6 +2929,9 @@ int kenwood_send_morse(RIG *rig, vfo_t vfo, const char *msg)
      */
     switch(rig->caps->rig_model) {
     case RIG_MODEL_K3: // probably a lot more rigs need to go here
+    case RIG_MODEL_K3S:
+    case RIG_MODEL_KX2:
+    case RIG_MODEL_KX3:
       snprintf(morsebuf, sizeof (morsebuf), "KY %s", m2);
       break;
     default:
@@ -2913,7 +3011,7 @@ int kenwood_set_mem(RIG *rig, vfo_t vfo, int ch)
         case RIG_VFO_MAIN: c = '0'; break;
         case RIG_VFO_SUB: c = '1'; break;
         default:
-          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
           return -RIG_EINVAL;
         }
       snprintf (buf, sizeof (buf), "MN%c%03d", c, ch);
@@ -2961,7 +3059,7 @@ int kenwood_get_mem(RIG *rig, vfo_t vfo, int *ch)
         case RIG_VFO_MAIN: c = '0'; break;
         case RIG_VFO_SUB: c = '1'; break;
         default:
-          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %d\n", __func__, vfo);
+          rig_debug(RIG_DEBUG_ERR, "%s: unsupported VFO %s\n", __func__, rig_strvfo(vfo));
           return -RIG_EINVAL;
         }
       snprintf (cmd, sizeof (cmd), "MN%c", c);
@@ -3410,6 +3508,9 @@ DECLARE_INITRIG_BACKEND(kenwood)
   rig_register(&trc80_caps);
   rig_register(&k2_caps);
   rig_register(&k3_caps);
+  rig_register(&k3s_caps);
+  rig_register(&kx2_caps);
+  rig_register(&kx3_caps);
   rig_register(&xg3_caps);
 
   rig_register(&ts440_caps);
@@ -3421,6 +3522,7 @@ DECLARE_INITRIG_BACKEND(kenwood)
   rig_register(&tmd700_caps);
   rig_register(&thd7a_caps);
   rig_register(&thd72a_caps);
+  rig_register(&thd74_caps);
   rig_register(&thf7e_caps);
   rig_register(&thg71_caps);
   rig_register(&tmv7_caps);
@@ -3436,6 +3538,7 @@ DECLARE_INITRIG_BACKEND(kenwood)
 
   rig_register(&f6k_caps);
   rig_register(&pihpsdr_caps);
+  rig_register(&ts890s_caps);
 
   return RIG_OK;
 }
